@@ -1,6 +1,6 @@
 import contextvars
 import traceback
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import dspy
 from loguru import logger
@@ -76,4 +76,31 @@ class AdviceGenerator(dspy.Module):
                 continue
             simple_advices.append(future.result().simple_advice)
         logger.debug(f"Generated section consultations: {simple_advices=}")
+        return simple_advices
+
+    @staticmethod
+    def run_in_context_no_contextvars(
+        desired_objectives: list[str],
+    ) -> list[SimpleAdvice]:
+        futures = []
+        with ThreadPoolExecutor() as executor:
+            for desired_objective in desired_objectives:
+                futures.append(  # noqa: PERF401
+                    executor.submit(
+                        AdviceGenerator._run,
+                        desired_objective=desired_objective,
+                    ),
+                )
+        simple_advices: list[SimpleAdvice] = []
+        for future in as_completed(futures):
+            if exception := future.exception():
+                logger.error(
+                    "\n".join(
+                        traceback.format_exception(
+                            type(exception), exception, exception.__traceback__
+                        )
+                    )
+                )
+                continue
+            simple_advices.append(future.result().simple_advice)
         return simple_advices
