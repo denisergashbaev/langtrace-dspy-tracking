@@ -1,12 +1,20 @@
 import contextvars
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from opentelemetry.context import get_current, attach, detach
 
 import dspy
 from loguru import logger
 import pydantic
 from src import config
 
+current_context = get_current()
+def run_with_context(context, func, *args, **kwargs):
+  token = attach(context)
+  try:
+      return func(*args, **kwargs)
+  finally:
+      detach(token)
 
 class SimpleAdvice(pydantic.BaseModel):
     lifestyle_modifications: str = pydantic.Field(description="Lifestyle modifications")
@@ -88,6 +96,33 @@ class AdviceGenerator(dspy.Module):
                 futures.append(  # noqa: PERF401
                     executor.submit(
                         AdviceGenerator._run,
+                        desired_objective=desired_objective,
+                    ),
+                )
+        simple_advices: list[SimpleAdvice] = []
+        for future in as_completed(futures):
+            if exception := future.exception():
+                logger.error(
+                    "\n".join(
+                        traceback.format_exception(
+                            type(exception), exception, exception.__traceback__
+                        )
+                    )
+                )
+                continue
+            simple_advices.append(future.result().simple_advice)
+        return simple_advices
+
+    @staticmethod
+    def run_in_context_opentelemetry(
+        desired_objectives: list[str],
+    ) -> list[SimpleAdvice]:
+        futures = []
+        with ThreadPoolExecutor() as executor:
+            for desired_objective in desired_objectives:
+                futures.append(  # noqa: PERF401
+                    executor.submit(
+                        run_with_context, current_context, AdviceGenerator._run,
                         desired_objective=desired_objective,
                     ),
                 )
