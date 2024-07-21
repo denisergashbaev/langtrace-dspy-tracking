@@ -2,7 +2,7 @@ import contextvars
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 
-import dspy  # type: ignore[import-untyped]
+import dspy
 from loguru import logger
 import pydantic
 from src import config
@@ -20,7 +20,7 @@ class AdviceSignature(dspy.Signature):
         desc="Desired objective",
     )
     simple_advice: SimpleAdvice = dspy.OutputField(
-        desc="Sample advice",
+        desc="Simple advice",
     )
 
 
@@ -35,16 +35,9 @@ class AdviceGenerator(dspy.Module):
         self,
         desired_objective: str,
     ) -> dspy.Prediction:
-        # logger.info("Calling SectionConsultationGenerator")
-        try:
-            ret = self.program(
-                desired_objective=desired_objective,
-            )
-        except Exception:
-            logger.exception(f"{desired_objective=}")
-            raise
-        else:
-            return ret
+        return self.program(
+            desired_objective=desired_objective,
+        )
 
     @staticmethod
     def _run(
