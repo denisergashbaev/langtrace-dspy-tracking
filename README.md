@@ -3,6 +3,7 @@
 * Install [PDM](https://pdm-project.org/en/latest/)
 * Run `pdm install`
 * Copy `.env.example` to `.env` and fill in the values
+* To clean DSPy cache, run `make dspy-clear-cache`
 * Run `pdm run python -m main.py`
   * Issues: if we provide contextpars when starting a thread
     * spans are only grouped under group span if the DSPy cache is cleared
@@ -16,5 +17,3 @@
     * Token counts on fresh runs are missing, overall token count missing
     * Individual spans are not given a meaningful name
     * ![image](readme_resources/run_with_opentelemetry.png)
-
-* To clean DSPy cache, run `make dspy-clear-cache`
